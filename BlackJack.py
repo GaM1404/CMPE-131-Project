@@ -6,12 +6,13 @@ import random
 # --- Model ---
 class BlackjackModel:
     def __init__(self):
+        suits = ['S', 'H', 'D', 'C']
         self.card_values = {
             '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
             '7': 7, '8': 8, '9': 9, '10': 10,
             'J': 10, 'Q': 10, 'K': 10, 'A': 11
         }
-        self.deck = []
+        self.deck = [f"{rank}{suit}" for rank in self.card_values.keys() for suit in suits]
         self.player_hands = []
         self.dealer_cards = []
         self.current_hand = 0
@@ -20,7 +21,7 @@ class BlackjackModel:
         self.split_bet = 0
 
     def reset_game(self):
-        self.deck = list(self.card_values.keys()) * 4
+        self.deck = [f"{rank}{suit}" for rank in self.card_values.keys() for suit in ['S', 'H', 'D', 'C']]
         random.shuffle(self.deck)
         self.player_hands = [[self.deal_card(), self.deal_card()]]
         self.dealer_cards = [self.deal_card(), self.deal_card()]
@@ -31,8 +32,9 @@ class BlackjackModel:
         return self.deck.pop()
 
     def calculate_score(self, cards):
-        score = sum(self.card_values[card] for card in cards)
-        aces = cards.count('A')
+        ranks = [card[:-1] for card in cards]
+        score = sum(self.card_values[rank] for rank in ranks)
+        aces = ranks.count('A')
         while score > 21 and aces:
             score -= 10
             aces -= 1
@@ -60,7 +62,6 @@ class BlackjackView:
         self.root = root
         self.root.title("Blackjack Game")
 
-        # Game Information Labels
         self.player_label = tk.Label(root, text="", font=("Helvetica", 14))
         self.dealer_label = tk.Label(root, text="", font=("Helvetica", 14))
         self.money_label = tk.Label(root, text="Money: $0", font=("Helvetica", 14), fg="green")
@@ -71,7 +72,6 @@ class BlackjackView:
         self.money_label.pack(pady=10)
         self.result_label.pack(pady=10)
 
-        # Button Controls
         self.button_frame = tk.Frame(root)
         self.button_frame.pack(pady=20)
 
@@ -125,7 +125,6 @@ class BlackjackController:
         self.model = BlackjackModel()
         self.view = BlackjackView(root)
 
-        # Button bindings
         self.view.hit_button.config(command=self.hit)
         self.view.stand_button.config(command=self.stand)
         self.view.double_button.config(command=self.double_down)
@@ -143,18 +142,24 @@ class BlackjackController:
         else:
             self.view.display_result("Buy-in is required to start the game.")
 
+    def rebuy(self):
+        rebuy_amount = simpledialog.askinteger("Rebuy", "Enter your rebuy amount ($):", minvalue=1)
+        if rebuy_amount:
+            self.model.player_money += rebuy_amount
+            self.view.update_money(self.model.player_money)
+            self.view.display_result("Rebuy successful! You can now place a bet.")
+            self.view.set_buttons_state(play="normal", rebuy="disabled")
+        else:
+            self.view.display_result("Rebuy canceled.")
+
     def play(self):
         if self.model.player_money > 0:
             self.model.reset_game()
             self.view.reset_result()
-            self.view.set_buttons_state(hit="normal", stand="normal", double="normal", split="normal", play="disabled")
             self.place_bet()
         else:
             self.view.set_buttons_state(play="disabled", rebuy="normal")
             self.view.display_result("Out of money! Please rebuy to continue.")
-
-    def rebuy(self):
-        self.buy_in()
 
     def place_bet(self):
         bet_amount = simpledialog.askinteger("Place Bet", "Enter your bet amount ($):", minvalue=1, maxvalue=self.model.player_money)
@@ -164,6 +169,7 @@ class BlackjackController:
                 self.view.update_money(self.model.player_money)
                 self.update_view()
                 self.check_blackjack()
+                self.view.set_buttons_state(hit="normal", stand="normal", double="normal", split="normal")
             except ValueError as e:
                 self.view.display_result(str(e))
                 self.place_bet()
@@ -174,7 +180,7 @@ class BlackjackController:
         hand = self.model.player_hands[0]
         score = self.model.calculate_score(hand)
         if score == 21:
-            self.model.payout(1.5)  # Blackjack payout is 3:2
+            self.model.payout(1.5)
             self.view.update_money(self.model.player_money)
             self.view.display_result("Blackjack! You win 3:2 payout!")
             self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", split="disabled", play="normal")
@@ -183,10 +189,9 @@ class BlackjackController:
     def hit(self):
         hand = self.model.player_hands[self.model.current_hand]
         hand.append(self.model.deal_card())
-        score = self.model.calculate_score(hand)
         self.update_view()
-        if score > 21:
-            self.view.display_result(f"Hand {self.model.current_hand + 1} Bust! Over 21.")
+        if self.model.calculate_score(hand) > 21:
+            self.view.display_result(f"Hand {self.model.current_hand + 1} Bust!")
             self.stand()
 
     def stand(self):
@@ -199,27 +204,26 @@ class BlackjackController:
             self.evaluate_winner()
 
     def double_down(self):
-        if self.model.player_money >= self.model.current_bet:
+        hand = self.model.player_hands[self.model.current_hand]
+        if len(hand) == 2 and self.model.player_money >= self.model.current_bet:
             self.model.player_money -= self.model.current_bet
             self.model.current_bet *= 2
             self.view.update_money(self.model.player_money)
-
-            hand = self.model.player_hands[self.model.current_hand]
             hand.append(self.model.deal_card())
             self.view.display_result("Double Down!")
             self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", split="disabled")
             self.stand()
         else:
-            self.view.display_result("Not enough money to Double Down!")
+            self.view.display_result("Double Down is only allowed on your first two cards!")
 
     def split(self):
         hand = self.model.player_hands[self.model.current_hand]
-        if len(hand) == 2 and self.model.card_values[hand[0]] == self.model.card_values[hand[1]] and self.model.player_money >= self.model.current_bet:
-            self.model.player_money -= self.model.current_bet  # Deduct additional bet
-            self.model.split_bet = self.model.current_bet  # Set the split bet
-            self.model.player_hands.append([hand.pop()])  # Move one card to a new hand
-            hand.append(self.model.deal_card())  # Deal new card to first hand
-            self.model.player_hands[-1].append(self.model.deal_card())  # Deal new card to split hand
+        if len(hand) == 2 and self.model.card_values[hand[0][:-1]] == self.model.card_values[hand[1][:-1]] and self.model.player_money >= self.model.current_bet:
+            self.model.player_money -= self.model.current_bet
+            self.model.split_bet = self.model.current_bet
+            self.model.player_hands.append([hand.pop()])
+            hand.append(self.model.deal_card())
+            self.model.player_hands[-1].append(self.model.deal_card())
             self.view.update_money(self.model.player_money)
             self.update_view()
             self.view.display_result("Split successful!")
@@ -231,14 +235,12 @@ class BlackjackController:
         results = []
         for i, hand in enumerate(self.model.player_hands):
             player_score = self.model.calculate_score(hand)
-            bet_amount = self.model.current_bet if i == 0 else self.model.split_bet  # Use correct bet for split hands
+            bet_amount = self.model.current_bet if i == 0 else self.model.split_bet
             if player_score > 21:
                 results.append(f"Hand {i + 1}: Bust! You lose ${bet_amount}.")
             elif dealer_score > 21 or player_score > dealer_score:
-                multiplier = 2
-                self.model.payout(multiplier, split=(i > 0))
-                win_amount = bet_amount * multiplier
-                results.append(f"Hand {i + 1}: Win! You win ${win_amount}.")
+                self.model.payout(2, split=(i > 0))
+                results.append(f"Hand {i + 1}: Win! You win ${bet_amount * 2}.")
             elif player_score < dealer_score:
                 results.append(f"Hand {i + 1}: Dealer wins! You lose ${bet_amount}.")
             else:
@@ -260,3 +262,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = BlackjackController(root)
     root.mainloop()
+
