@@ -331,9 +331,4 @@ class BlackjackController:
 if __name__ == "__main__":
     root = tk.Tk()
     app = BlackjackController(root)
-<<<<<<< HEAD
     root.mainloop()
-=======
-    root.mainloop()
-
->>>>>>> cd1e03132022960fef6356d53db8980f385da23a
