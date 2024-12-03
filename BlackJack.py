@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import simpledialog
 import random
-from tkinter import PhotoImage
-from PIL import Image, ImageTk  # Import Pillow for image resizing
+
 
 # --- Model ---
 class BlackjackModel:
@@ -73,17 +72,6 @@ class BlackjackView:
         self.money_label.pack(pady=10)
         self.result_label.pack(pady=10)
 
-<<<<<<< HEAD
-        # Card display frames
-        self.player_frame = tk.Frame(root)
-        self.dealer_frame = tk.Frame(root)
-
-        self.player_frame.pack(pady=10)
-        self.dealer_frame.pack(pady=10)
-
-        # Button Controls
-=======
->>>>>>> 9bca5e229b0c7a065a3dbb7fa4c8570e8841dab3
         self.button_frame = tk.Frame(root)
         self.button_frame.pack(pady=20)
 
@@ -101,46 +89,16 @@ class BlackjackView:
         self.play_button.pack(side=tk.LEFT, padx=5)
         self.rebuy_button.pack(side=tk.LEFT, padx=5)
 
-    def resize_image(self, img, width=50, height=75):
-        # Resize the image to a fixed size
-        img = img.resize((width, height))
-        return ImageTk.PhotoImage(img)
-
     def update_player(self, hands, current_hand, scores):
-        for widget in self.player_frame.winfo_children():
-            widget.destroy()
-
-        for card in hands[current_hand]:
-            image_path = f"assets/{card}.png"
-            img = Image.open(image_path)
-            resized_img = self.resize_image(img)
-            label = tk.Label(self.player_frame, image=resized_img)
-            label.image = resized_img
-            label.pack(side=tk.LEFT, padx=5)
-
-        display_hands = "\n".join([f"Hand {i + 1}: {', '.join(hand)} (Score: {scores[i]})" for i, hand in enumerate(hands)])
+        display_hands = "\n".join(
+            [f"Hand {i + 1}: {', '.join(hand)} (Score: {scores[i]})" for i, hand in enumerate(hands)]
+        )
         self.player_label.config(text=f"Your cards:\n{display_hands}\n(Current Hand: {current_hand + 1})")
 
     def update_dealer(self, cards, reveal=False):
-        for widget in self.dealer_frame.winfo_children():
-            widget.destroy()
-
         if reveal:
-            for card in cards:
-                image_path = f"assets/{card}.png"
-                img = Image.open(image_path)
-                resized_img = self.resize_image(img)
-                label = tk.Label(self.dealer_frame, image=resized_img)
-                label.image = resized_img
-                label.pack(side=tk.LEFT, padx=5)
             self.dealer_label.config(text=f"Dealer's cards: {', '.join(cards)}")
         else:
-            image_path = f"assets/{cards[0]}.png"
-            img = Image.open(image_path)
-            resized_img = self.resize_image(img)
-            label = tk.Label(self.dealer_frame, image=resized_img)
-            label.image = resized_img
-            label.pack(side=tk.LEFT, padx=5)
             self.dealer_label.config(text=f"Dealer's cards: {cards[0]}, ?")
 
     def update_money(self, money):
@@ -219,13 +177,6 @@ class BlackjackController:
             self.view.display_result("Bet is required to continue.")
 
     def check_blackjack(self):
-<<<<<<< HEAD
-        hand = self.model.player_hands[self.model.current_hand]
-        if self.model.calculate_score(hand) == 21:
-            self.view.display_result("Blackjack! Waiting for dealer's turn...")
-            self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", split="disabled")
-            self.stand()
-=======
         hand = self.model.player_hands[0]
         score = self.model.calculate_score(hand)
         if score == 21:
@@ -234,20 +185,13 @@ class BlackjackController:
             self.view.display_result("Blackjack! You win 3:2 payout!")
             self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", split="disabled", play="normal")
             self.update_view(reveal=True)
->>>>>>> 9bca5e229b0c7a065a3dbb7fa4c8570e8841dab3
 
     def hit(self):
         hand = self.model.player_hands[self.model.current_hand]
         hand.append(self.model.deal_card())
         self.update_view()
-<<<<<<< HEAD
-        if score > 21:
-            self.view.display_result(f"Hand {self.model.current_hand + 1} Bust! Over 21.")
-            self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", split="disabled")
-=======
         if self.model.calculate_score(hand) > 21:
             self.view.display_result(f"Hand {self.model.current_hand + 1} Bust!")
->>>>>>> 9bca5e229b0c7a065a3dbb7fa4c8570e8841dab3
             self.stand()
 
     def stand(self):
@@ -262,26 +206,18 @@ class BlackjackController:
     def double_down(self):
         hand = self.model.player_hands[self.model.current_hand]
         if len(hand) == 2 and self.model.player_money >= self.model.current_bet:
-<<<<<<< HEAD
-            hand.append(self.model.deal_card())
             self.model.player_money -= self.model.current_bet
-            self.model.current_bet *= 2
-            self.view.update_money(self.model.player_money)
-=======
-            self.model.player_money -= self.model.current_bet
-            self.model.current_bet *= 2
+            if self.model.current_hand == 0:
+                self.model.current_bet *= 2
+            else:
+                self.model.split_bet *= 2
             self.view.update_money(self.model.player_money)
             hand.append(self.model.deal_card())
->>>>>>> 9bca5e229b0c7a065a3dbb7fa4c8570e8841dab3
             self.view.display_result("Double Down!")
             self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", split="disabled")
             self.stand()
         else:
-<<<<<<< HEAD
-            self.view.display_result("Double Down is only allowed on your first two cards and if you have enough funds.")
-=======
             self.view.display_result("Double Down is only allowed on your first two cards!")
->>>>>>> 9bca5e229b0c7a065a3dbb7fa4c8570e8841dab3
 
     def split(self):
         hand = self.model.player_hands[self.model.current_hand]
@@ -329,4 +265,5 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = BlackjackController(root)
     root.mainloop()
+
 
