@@ -1,7 +1,5 @@
 import tkinter as tk
 from tkinter import simpledialog
-from PIL import Image, ImageTk
-import os
 import random
 
 
@@ -19,21 +17,7 @@ class BlackjackModel:
         self.current_hand = 0
         self.player_money = 0
         self.current_bet = 0
-    def load_card_images(self):
-        """Loads images of playing cards into a dictionary."""
-        image_folder = "assets"  # Folder where card images are stored
-        images = {}
-        suits = ['H', 'D', 'S', 'C']  # Hearts, Diamonds, Spades, Clubs
-        for rank in self.card_values.keys():
-            for suit in suits:
-                card_name = f"{rank}{suit}.png"
-                try:
-                    img = Image.open(os.path.join(image_folder, card_name))
-                    img = img.resize((100, 140))  # Resize to fit the UI
-                    images[f"{rank}{suit}"] = ImageTk.PhotoImage(img)
-                except FileNotFoundError:
-                    pass  # Handle missing files gracefully
-        return images
+
     def reset_game(self):
         self.deck = list(self.card_values.keys()) * 4
         random.shuffle(self.deck)
@@ -82,12 +66,6 @@ class BlackjackView:
         self.money_label.pack(pady=10)
         self.result_label.pack(pady=10)
 
-        # Cards display
-        self.player_cards_frame = tk.Frame(root)
-        self.player_cards_frame.pack(pady=10)
-        self.dealer_cards_frame = tk.Frame(root)
-        self.dealer_cards_frame.pack(pady=10)
-
         # Button Controls
         self.button_frame = tk.Frame(root)
         self.button_frame.pack(pady=20)
@@ -95,51 +73,27 @@ class BlackjackView:
         self.hit_button = tk.Button(self.button_frame, text="Hit", width=10, state="disabled")
         self.stand_button = tk.Button(self.button_frame, text="Stand", width=10, state="disabled")
         self.double_button = tk.Button(self.button_frame, text="Double Down", width=12, state="disabled")
-        self.restart_button = tk.Button(self.button_frame, text="Restart", width=10)
+        self.play_button = tk.Button(self.button_frame, text="Play", width=10)
+        self.rebuy_button = tk.Button(self.button_frame, text="Rebuy", width=10, state="disabled")
 
         self.hit_button.pack(side=tk.LEFT, padx=5)
         self.stand_button.pack(side=tk.LEFT, padx=5)
         self.double_button.pack(side=tk.LEFT, padx=5)
-        self.restart_button.pack(side=tk.LEFT, padx=5)
+        self.play_button.pack(side=tk.LEFT, padx=5)
+        self.rebuy_button.pack(side=tk.LEFT, padx=5)
 
-    
     def update_player(self, hands, current_hand, scores):
-        self.clear_cards(self.player_cards_frame)
-        display_hands = ""
-        for i, hand in enumerate(hands):
-            display_hands += f"Hand {i + 1}: {' '.join(hand)} (Score: {scores[i]})\n"
-            for card in hand:
-                card_img = self.get_card_image(card)
-                label = tk.Label(self.player_cards_frame, image=card_img)
-                label.image = card_img  # Keep a reference to prevent garbage collection
-                label.pack(side=tk.LEFT)
+        display_hands = "\n".join(
+            [f"Hand {i + 1}: {', '.join(hand)} (Score: {scores[i]})" for i, hand in enumerate(hands)]
+        )
         self.player_label.config(text=f"Your cards:\n{display_hands}\n(Current Hand: {current_hand + 1})")
 
     def update_dealer(self, cards, reveal=False):
-        self.clear_cards(self.dealer_cards_frame)
         if reveal:
-            for card in cards:
-                card_img = self.get_card_image(card)
-                label = tk.Label(self.dealer_cards_frame, image=card_img)
-                label.image = card_img  # Keep a reference to prevent garbage collection
-                label.pack(side=tk.LEFT)
             self.dealer_label.config(text=f"Dealer's cards: {', '.join(cards)}")
         else:
-            # Show only one dealer card (hidden second card)
-            card_img = self.get_card_image(cards[0])
-            label = tk.Label(self.dealer_cards_frame, image=card_img)
-            label.image = card_img
-            label.pack(side=tk.LEFT)
             self.dealer_label.config(text=f"Dealer's cards: {cards[0]}, ?")
 
-    def get_card_image(self, card):
-        """Return the appropriate card image from the model."""
-        return self.model.card_images.get(card, None)
-
-    def clear_cards(self, frame):
-        """Clears the card images displayed in a frame."""
-        for widget in frame.winfo_children():
-            widget.destroy()
     def update_money(self, money):
         self.money_label.config(text=f"Money: ${money}")
 
@@ -149,10 +103,12 @@ class BlackjackView:
     def reset_result(self):
         self.result_label.config(text="")
 
-    def set_buttons_state(self, hit="disabled", stand="disabled", double="disabled"):
+    def set_buttons_state(self, hit="disabled", stand="disabled", double="disabled", play="normal", rebuy="disabled"):
         self.hit_button.config(state=hit)
         self.stand_button.config(state=stand)
         self.double_button.config(state=double)
+        self.play_button.config(state=play)
+        self.rebuy_button.config(state=rebuy)
 
 
 # --- Controller ---
@@ -165,7 +121,8 @@ class BlackjackController:
         self.view.hit_button.config(command=self.hit)
         self.view.stand_button.config(command=self.stand)
         self.view.double_button.config(command=self.double_down)
-        self.view.restart_button.config(command=self.restart)
+        self.view.play_button.config(command=self.play)
+        self.view.rebuy_button.config(command=self.rebuy)
 
         self.buy_in()
 
@@ -173,15 +130,22 @@ class BlackjackController:
         buy_in_amount = simpledialog.askinteger("Buy In", "Enter your buy-in amount ($):", minvalue=1)
         if buy_in_amount:
             self.model.player_money = buy_in_amount
-            self.restart()
+            self.play()
         else:
             self.view.display_result("Buy-in is required to start the game.")
 
-    def restart(self):
-        self.model.reset_game()
-        self.view.reset_result()
-        self.view.set_buttons_state(hit="normal", stand="normal", double="normal")
-        self.place_bet()
+    def play(self):
+        if self.model.player_money > 0:
+            self.model.reset_game()
+            self.view.reset_result()
+            self.view.set_buttons_state(hit="normal", stand="normal", double="normal", play="disabled")
+            self.place_bet()
+        else:
+            self.view.set_buttons_state(play="disabled", rebuy="normal")
+            self.view.display_result("Out of money! Please rebuy to continue.")
+
+    def rebuy(self):
+        self.buy_in()
 
     def place_bet(self):
         bet_amount = simpledialog.askinteger("Place Bet", "Enter your bet amount ($):", minvalue=1, maxvalue=self.model.player_money)
@@ -242,7 +206,7 @@ class BlackjackController:
                 results.append(f"Hand {i + 1}: Tie. Bet returned.")
         self.view.update_money(self.model.player_money)
         self.view.display_result("\n".join(results))
-        self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled")
+        self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", play="normal")
         self.update_view(reveal=True)
 
     def update_view(self, reveal=False):
