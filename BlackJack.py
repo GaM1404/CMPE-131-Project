@@ -1,12 +1,14 @@
 import tkinter as tk
 from tkinter import simpledialog
 import random
+from PIL import Image, ImageTk
+import os
 
 
 # --- Model ---
 class BlackjackModel:
     def __init__(self):
-        suits = ['S', 'H', 'D', 'C']
+        suits = ['S', 'H', 'D', 'C']  # Spades, Hearts, Diamonds, Clubs
         self.card_values = {
             '2': 2, '3': 3, '4': 4, '5': 5, '6': 6,
             '7': 7, '8': 8, '9': 9, '10': 10,
@@ -56,14 +58,15 @@ class BlackjackModel:
             self.current_bet = 0
 
 
+
 # --- View ---
 class BlackjackView:
     def __init__(self, root):
         self.root = root
         self.root.title("Blackjack Game")
 
-        self.player_label = tk.Label(root, text="", font=("Helvetica", 14))
-        self.dealer_label = tk.Label(root, text="", font=("Helvetica", 14))
+        self.player_label = tk.Label(root, text="Your cards:", font=("Helvetica", 14))
+        self.dealer_label = tk.Label(root, text="Dealer's cards:", font=("Helvetica", 14))
         self.money_label = tk.Label(root, text="Money: $0", font=("Helvetica", 14), fg="green")
         self.result_label = tk.Label(root, text="", font=("Helvetica", 14), fg="red")
 
@@ -89,17 +92,81 @@ class BlackjackView:
         self.play_button.pack(side=tk.LEFT, padx=5)
         self.rebuy_button.pack(side=tk.LEFT, padx=5)
 
+        # Create frames to hold card images
+        self.player_cards_frame = tk.Frame(root)
+        self.player_cards_frame.pack(pady=10)
+        self.dealer_cards_frame = tk.Frame(root)
+        self.dealer_cards_frame.pack(pady=10)
+
+        self.player_card_images = []
+        self.dealer_card_images = []
+
+    def load_card_image(self, card):
+        image_path = os.path.join('assets', f'{card}.png')
+        try:
+            img = Image.open(image_path)
+            img = img.resize((50, 75))
+            return ImageTk.PhotoImage(img)
+        except FileNotFoundError:
+            return None
+
     def update_player(self, hands, current_hand, scores):
-        display_hands = "\n".join(
-            [f"Hand {i + 1}: {', '.join(hand)} (Score: {scores[i]})" for i, hand in enumerate(hands)]
-        )
-        self.player_label.config(text=f"Your cards:\n{display_hands}\n(Current Hand: {current_hand + 1})")
+        # Display player cards in text
+        hand_text = ", ".join(hands[current_hand])
+        self.player_label.config(text=f"Your cards: {hand_text} (Score: {scores[current_hand]})")
+
+        # Display player card images
+        self.clear_player_images()
+        for card in hands[current_hand]:
+            img = self.load_card_image(card)
+            if img:
+                self.player_card_images.append(img)
+
+        # Clear previous images and display new ones
+        self.display_card_images(self.player_cards_frame, self.player_card_images)
 
     def update_dealer(self, cards, reveal=False):
-        if reveal:
-            self.dealer_label.config(text=f"Dealer's cards: {', '.join(cards)}")
+    # If reveal is False (i.e., during the player's turn), only show the first card
+        if not reveal:
+            dealer_text = f"Dealer's cards: {cards[0]}, ?"
+            self.dealer_label.config(text=dealer_text)
+            
+            # Display only the first card of the dealer
+            self.clear_dealer_images()
+            first_card_img = self.load_card_image(cards[0])
+            if first_card_img:
+                self.dealer_card_images.append(first_card_img)
+            
+            # Display the first card image
+            self.display_card_images(self.dealer_cards_frame, self.dealer_card_images)
         else:
-            self.dealer_label.config(text=f"Dealer's cards: {cards[0]}, ?")
+            # After the player's action (reveal all dealer cards)
+            dealer_text = ", ".join(cards)
+            self.dealer_label.config(text=f"Dealer's cards: {dealer_text}")
+            
+            # Display all the dealer's cards
+            self.clear_dealer_images()
+            for card in cards:
+                img = self.load_card_image(card)
+                if img:
+                    self.dealer_card_images.append(img)
+            
+            # Display all dealer card images
+            self.display_card_images(self.dealer_cards_frame, self.dealer_card_images)
+
+    def display_card_images(self, frame, images):
+        for widget in frame.winfo_children():
+            widget.destroy()  # Clear previous images
+
+        for img in images:
+            label = tk.Label(frame, image=img)
+            label.pack(side=tk.LEFT, padx=5)
+
+    def clear_player_images(self):
+        self.player_card_images = []
+
+    def clear_dealer_images(self):
+        self.dealer_card_images = []
 
     def update_money(self, money):
         self.money_label.config(text=f"Money: ${money}")
@@ -119,7 +186,7 @@ class BlackjackView:
         self.rebuy_button.config(state=rebuy)
 
 
-# --- Controller ---
+
 class BlackjackController:
     def __init__(self, root):
         self.model = BlackjackModel()
@@ -265,5 +332,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = BlackjackController(root)
     root.mainloop()
-
-
