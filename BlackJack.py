@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import simpledialog
+from PIL import Image, ImageTk
+import os
 import random
 
 
@@ -17,7 +19,21 @@ class BlackjackModel:
         self.current_hand = 0
         self.player_money = 0
         self.current_bet = 0
-
+    def load_card_images(self):
+        """Loads images of playing cards into a dictionary."""
+        image_folder = "assets"  # Folder where card images are stored
+        images = {}
+        suits = ['H', 'D', 'S', 'C']  # Hearts, Diamonds, Spades, Clubs
+        for rank in self.card_values.keys():
+            for suit in suits:
+                card_name = f"{rank}{suit}.png"
+                try:
+                    img = Image.open(os.path.join(image_folder, card_name))
+                    img = img.resize((100, 140))  # Resize to fit the UI
+                    images[f"{rank}{suit}"] = ImageTk.PhotoImage(img)
+                except FileNotFoundError:
+                    pass  # Handle missing files gracefully
+        return images
     def reset_game(self):
         self.deck = list(self.card_values.keys()) * 4
         random.shuffle(self.deck)
@@ -66,6 +82,12 @@ class BlackjackView:
         self.money_label.pack(pady=10)
         self.result_label.pack(pady=10)
 
+        # Cards display
+        self.player_cards_frame = tk.Frame(root)
+        self.player_cards_frame.pack(pady=10)
+        self.dealer_cards_frame = tk.Frame(root)
+        self.dealer_cards_frame.pack(pady=10)
+
         # Button Controls
         self.button_frame = tk.Frame(root)
         self.button_frame.pack(pady=20)
@@ -80,18 +102,44 @@ class BlackjackView:
         self.double_button.pack(side=tk.LEFT, padx=5)
         self.restart_button.pack(side=tk.LEFT, padx=5)
 
+    
     def update_player(self, hands, current_hand, scores):
-        display_hands = "\n".join(
-            [f"Hand {i + 1}: {', '.join(hand)} (Score: {scores[i]})" for i, hand in enumerate(hands)]
-        )
+        self.clear_cards(self.player_cards_frame)
+        display_hands = ""
+        for i, hand in enumerate(hands):
+            display_hands += f"Hand {i + 1}: {' '.join(hand)} (Score: {scores[i]})\n"
+            for card in hand:
+                card_img = self.get_card_image(card)
+                label = tk.Label(self.player_cards_frame, image=card_img)
+                label.image = card_img  # Keep a reference to prevent garbage collection
+                label.pack(side=tk.LEFT)
         self.player_label.config(text=f"Your cards:\n{display_hands}\n(Current Hand: {current_hand + 1})")
 
     def update_dealer(self, cards, reveal=False):
+        self.clear_cards(self.dealer_cards_frame)
         if reveal:
+            for card in cards:
+                card_img = self.get_card_image(card)
+                label = tk.Label(self.dealer_cards_frame, image=card_img)
+                label.image = card_img  # Keep a reference to prevent garbage collection
+                label.pack(side=tk.LEFT)
             self.dealer_label.config(text=f"Dealer's cards: {', '.join(cards)}")
         else:
+            # Show only one dealer card (hidden second card)
+            card_img = self.get_card_image(cards[0])
+            label = tk.Label(self.dealer_cards_frame, image=card_img)
+            label.image = card_img
+            label.pack(side=tk.LEFT)
             self.dealer_label.config(text=f"Dealer's cards: {cards[0]}, ?")
 
+    def get_card_image(self, card):
+        """Return the appropriate card image from the model."""
+        return self.model.card_images.get(card, None)
+
+    def clear_cards(self, frame):
+        """Clears the card images displayed in a frame."""
+        for widget in frame.winfo_children():
+            widget.destroy()
     def update_money(self, money):
         self.money_label.config(text=f"Money: ${money}")
 
