@@ -154,11 +154,23 @@ class BlackjackController:
                 self.model.place_bet(bet_amount)
                 self.view.update_money(self.model.player_money)
                 self.update_view()
+                self.check_blackjack()
             except ValueError as e:
                 self.view.display_result(str(e))
                 self.place_bet()
         else:
             self.view.display_result("Bet is required to continue.")
+
+    def check_blackjack(self):
+        """Check if player has Blackjack on initial deal."""
+        hand = self.model.player_hands[0]
+        score = self.model.calculate_score(hand)
+        if score == 21:
+            self.model.payout(1.5)  # Blackjack payout is 3:2
+            self.view.update_money(self.model.player_money)
+            self.view.display_result("Blackjack! You win 3:2 payout!")
+            self.view.set_buttons_state(hit="disabled", stand="disabled", double="disabled", play="normal")
+            self.update_view(reveal=True)
 
     def hit(self):
         hand = self.model.player_hands[self.model.current_hand]
@@ -196,7 +208,7 @@ class BlackjackController:
             if player_score > 21:
                 results.append(f"Hand {i + 1}: Bust!")
             elif dealer_score > 21 or player_score > dealer_score:
-                payout = 2.5 if len(hand) == 2 and player_score == 21 else 2
+                payout = 2
                 self.model.payout(payout)
                 results.append(f"Hand {i + 1}: You win! Payout: {payout}x")
             elif player_score < dealer_score:
