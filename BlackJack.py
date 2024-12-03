@@ -88,6 +88,12 @@ class BlackjackView:
     def reset_result(self):
         self.result_label.config(text="")
 
+    def set_buttons_state(self, state):
+        self.hit_button.config(state=state)
+        self.double_button.config(state=state)
+        self.stand_button.config(state=state)
+        self.split_button.config(state=state)
+
 
 # --- Controller ---
 class BlackjackController:
@@ -107,6 +113,7 @@ class BlackjackController:
     def restart(self):
         self.model.reset_game()
         self.view.reset_result()
+        self.view.set_buttons_state("normal")
         self.update_view()
 
     def hit(self):
@@ -116,11 +123,13 @@ class BlackjackController:
         self.update_view()
         if score > 21:
             self.view.display_result(f"Hand {self.model.current_hand + 1} Bust! Over 21.")
+            self.disable_buttons_for_hand()
             self.stand()
 
     def stand(self):
         if self.model.current_hand < len(self.model.player_hands) - 1:
             self.model.current_hand += 1
+            self.view.set_buttons_state("normal")
             self.update_view()
         else:
             while self.model.calculate_score(self.model.dealer_cards) < 17:
@@ -131,9 +140,8 @@ class BlackjackController:
         hand = self.model.player_hands[self.model.current_hand]
         hand.append(self.model.deal_card())
         score = self.model.calculate_score(hand)
-        self.update_view()
-        if score > 21:
-            self.view.display_result(f"Hand {self.model.current_hand + 1} Bust! Over 21.")
+        self.view.display_result(f"Hand {self.model.current_hand + 1} Double Down!")
+        self.disable_buttons_for_hand()
         self.stand()
 
     def split(self):
@@ -157,6 +165,7 @@ class BlackjackController:
             else:
                 results.append(f"Hand {i + 1}: It's a tie.")
         self.view.display_result("\n".join(results))
+        self.view.set_buttons_state("disabled")
         self.update_view(reveal=True)
 
     def update_view(self, reveal=False):
@@ -164,10 +173,12 @@ class BlackjackController:
         self.view.update_player(self.model.player_hands, self.model.current_hand, scores)
         self.view.update_dealer(self.model.dealer_cards, reveal)
 
+    def disable_buttons_for_hand(self):
+        self.view.set_buttons_state("disabled")
+
 
 # --- Main ---
 if __name__ == "__main__":
     root = tk.Tk()
     app = BlackjackController(root)
     root.mainloop()
-
