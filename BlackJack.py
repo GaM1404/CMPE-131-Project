@@ -105,7 +105,7 @@ class BlackjackView:
         image_path = os.path.join('CMPE-131-Project/assets', f'{card}.png')
         try:
             img = Image.open(image_path)
-            img = img.resize((50, 75))
+            img = img.resize((100, 140))
             return ImageTk.PhotoImage(img)
         except FileNotFoundError:
             return None
