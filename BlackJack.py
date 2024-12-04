@@ -102,7 +102,7 @@ class BlackjackView:
         self.dealer_card_images = []
 
     def load_card_image(self, card):
-        image_path = os.path.join('assets', f'{card}.png')
+        image_path = os.path.join('CMPE-131-Project/assets', f'{card}.png')
         try:
             img = Image.open(image_path)
             img = img.resize((50, 75))
